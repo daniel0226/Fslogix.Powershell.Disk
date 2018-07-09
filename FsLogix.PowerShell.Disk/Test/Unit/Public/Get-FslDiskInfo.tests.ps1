@@ -7,17 +7,15 @@ $here = $here | Split-Path -Parent | Split-Path -Parent | Split-Path -Parent
 Describe $sut{
     Mock -CommandName Remove-item -MockWith {$true}
     Mock -CommandName get-fslvhd -MockWith {} -Verifiable
+    Mock -CommandName Export-csv -MockWith {$true}
     Context -Name "Should throw"{
         it 'Incorrect VHD path'{
-            $command = {get-fsldiskinfo -path 'C:\blah'} | Out-Null
+            $command = {get-fsldiskinfo -path 'C:\blah'} 
             $command | should throw
         }
         it 'Incorrect Csv path'{
-            $command = {get-fsldiskinfo -csvfile 'C:\blah'} | Out-Null
+            $command = {get-fsldiskinfo -csvfile 'C:\blah'} 
             $command | should throw
-        }
-        it 'If incorrect csv path, remove-item should not be called' {
-            Assert-MockCalled -CommandName "remove-item" -Times 0
         }
     }
     Context -name 'Should not throw'{
@@ -25,7 +23,11 @@ Describe $sut{
             {Get-fsldiskinfo} | should not throw
         }
         it 'Valid inputs'{
-            {Get-fsldiskinfo -path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2' -csvfile 'C:\Users\danie\Documents\VHDModuleProject\test.csv'} | should not throw
+            {Get-fsldiskinfo -path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest' -csvfile 'C:\Users\danie\Documents\VHDModuleProject\test.csv'} | should not throw
         }
+          it 'Asserts all verifiable mocks' {
+            Assert-VerifiableMocks
+        }
+        
     }
 }
