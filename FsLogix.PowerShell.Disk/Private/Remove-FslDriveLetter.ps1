@@ -4,6 +4,10 @@ function Remove-FslDriveLetter {
         .SYNOPSIS
         Removes a drive letter associated with a virtual disk.
 
+        .DESCRIPTION
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
+
         .PARAMETER Path
         Path to a either specified virtual disk or directory containing disks.
 
@@ -15,21 +19,20 @@ function Remove-FslDriveLetter {
         [Parameter(Position = 0, Mandatory = $true,ValueFromPipelineByPropertyName = $true)]
         [System.String]$Path
     )
-    
-    begin {
+
+    begin{
         set-strictmode -Version latest
     }
-    
+
     process {
-        $VHDs = Get-FslVHD -path $Path
-        if ($null -eq $VHDs) {
-            Write-Warning "Could not find VHD's in $path"
-            exit
-        }
+
         if(-not(test-path -path $path)){
-            Write-Error "Could not find path: $path"
-            exit
+            Write-Error "Could not find path: $path" -ErrorAction Stop
         }
+
+        $VHDs = Get-FslDisk -path $Path
+
+
         foreach ($vhd in $VHDs) {
             try {
                 ## Need to mount ##
@@ -46,7 +49,7 @@ function Remove-FslDriveLetter {
                 break
             }
             $driveLetter = $mount | Get-Disk | Get-Partition | Select-Object -ExpandProperty AccessPaths | Select-Object -first 1
-            
+
             if ($driveLetter -like "*\\?\Volume{*" -or $null -eq $driveLetter) {
                 Write-Warning "Drive Letter is already removed for $($vhd.path)"
                 break
@@ -54,7 +57,7 @@ function Remove-FslDriveLetter {
 
             $Driveletter = get-driveletter -VHDPath $vhd.path
             $DL = $Driveletter.substring(0, 1)
-            
+
             try {
                 $Volume = Get-Volume | where-Object {$_.DriveLetter -eq $DL}
             }
@@ -63,7 +66,7 @@ function Remove-FslDriveLetter {
             }
             try {
                 $Volume | Get-Partition | Remove-PartitionAccessPath -AccessPath $Driveletter
-                Write-Verbose "Successfully removed $Driveletter"
+                Write-Verbose "$(Get-Date): Successfully removed $Driveletter"
             }
             catch {
                 Write-Error $Error[0]
@@ -71,10 +74,9 @@ function Remove-FslDriveLetter {
             }
             dismount-FslDisk -path $vhd.path
         }
-        
-        
+
     }
-    
+
     end {
     }
 }

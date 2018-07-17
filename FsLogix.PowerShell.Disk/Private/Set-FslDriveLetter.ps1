@@ -3,6 +3,10 @@ function Set-FslDriveLetter {
         .SYNOPSIS
         Set's a user specified Drive Letter to a virtual disk
 
+        .DESCRIPTION
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
+
         .PARAMETER VHDPath
         Path to a specified virtual disk or directory containing virtual disks.
 
@@ -22,18 +26,18 @@ function Set-FslDriveLetter {
         [ValidatePattern('^[a-zA-Z]')]
         [System.Char]$Letter
     )
-    
+
     begin {
         Set-StrictMode -Version latest
     }
-    
+
     process {
 
         if(-not(test-path -path $VHDPath)){
             Write-Error "Could not find path: $VHDPath" -ErrorAction Stop
         }
-        
-        $VHDs = Get-FslVHD -path $VHDPath
+
+        $VHDs = Get-FslDisk -path $VHDPath
         if ($null -eq $VHDs) {
             Write-Warning "Could not find any VHD's in path: $VHDPath" -WarningAction Stop
         }
@@ -43,43 +47,40 @@ function Set-FslDriveLetter {
         $NewLetter = "$Letter" + ":"
         $Available = $false
 
-        foreach ($curLetter in $AvailableLetters) {
-            if ($curLetter.ToString() -eq $letter) {
-                $Available = $true
-                break
-            }
+        if($AvailableLetters -contains $Letter){
+            $Available = $true
         }
 
         if($Available -eq $false){
-            Write-Error "DriveLetter $Letter is not available. For available driveletters, type cmdlet: Get-FslAvailableDriveLetter" -ErrorAction Stop
+            Write-Error "DriveLetter '$($Letter):\' is not available. For available driveletters, type cmdlet: Get-FslAvailableDriveLetter" -ErrorAction Stop
         }
 
         foreach ($vhd in $VHDs) {
             $name = split-path -path $vhd.path -leaf
             $DL = Get-driveletter -VHDPath $vhd.path
             $subbedDL = $DL.substring(0,2)
-    
+
             try {
-                $drive = Get-WmiObject -Class win32_volume -Filter "DriveLetter = '$subbedDl'"
+                $drive = Get-WmiObject -Class win32_volume -Filter "DriveLetter = '$subbedDl'" | out-null
             }
             catch {
-                Write-Verbose "Could not chang $name's Driveletter to $letter."
+                Write-Verbose "$(Get-Date): Could not change $name's Driveletter to $letter."
                 Write-Error $Error[0]
                 exit
             }
-                
+
             try {
-                $drive | Set-WmiInstance -Arguments @{DriveLetter = $NewLetter}
+                $drive | Set-WmiInstance -Arguments @{DriveLetter = $NewLetter} | Out-Null
             }
             catch {
-                Write-Verbose "Could not chang $name's Driveletter to $letter."
+                Write-Verbose "$(Get-Date): Could not change $name's Driveletter to $letter."
                 Write-Error $Error[0]
             }
 
-            Write-Verbose "Succesfully changed $name's Driveletter to $letter."
+            Write-Verbose "$(Get-Date): Succesfully changed $name's Driveletter to $letter."
             dismount-FslDisk -path $Vhd.path
         }
-    }  
+    }
     end {
     }
 }

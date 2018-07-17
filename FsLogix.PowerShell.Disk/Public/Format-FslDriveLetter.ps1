@@ -3,6 +3,10 @@ function Format-FslDriveLetter {
         .SYNOPSIS
         Function to either get, set, or remove a disk's driveletter.
 
+        .DESCRIPTION
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
+
         .PARAMETER VHDpath
         Path to a specificed VHD or directory of VHD's.
 
@@ -24,71 +28,55 @@ function Format-FslDriveLetter {
         format-fsldriveletter -path C:\users\danie\documents\ODFC\test1.vhd -command remove
         Remove's the driveltter on test1.vhd
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParametersetName='None')]
     param (
-        
-        [Parameter(Position = 0, Mandatory = $true, 
+
+        [Parameter(Position = 0, Mandatory = $true,
         ValueFromPipeline = $true)]
         [alias("path")]
         [System.String]$VhdPath,
-        
-        [Parameter(Position = 1, Mandatory = $true, 
-        ValueFromPipeline = $true)]
-        [ValidateSet('get','set','remove')]
-        [System.String]$Command,
 
-        [Parameter(Position = 2, Mandatory = $false, 
-        ValueFromPipeline = $true)]
+        [Parameter(Position = 1, ParameterSetName = 'GetDL')]
+        [Switch]$Get,
+
+        [Parameter(Position = 2, ParameterSetName = 'RemoveDL')]
+        [Switch]$Remove,
+
+        [Parameter(Position = 3, ParameterSetName = 'SetDL')]
+        [Switch]$Set,
+
+        [Parameter(Position = 2, ParameterSetName = 'SetDL',Mandatory = $true)]
         [ValidatePattern('^[a-zA-Z]')]
         [System.Char]$Letter
 
 
     )
-    
+
     begin {
         set-strictmode -Version latest
-        $GetDL = $false
-        $SetDL = $false
-        $RemoveDL = $false
     }
-    
+
     process {
         ## Helper function to retrieve VHD's. Will handle errors ##
         $VHDs = get-fslvhd -Path $VhdPath
-        
-        switch ($Command) {
-            'get' {
-                $GetDL = $true
-            }
-            'set' {
-                $SetDL = $true
-                if($null -eq $Letter){
-                    Write-Warning "Please enter a Drive Letter. Example: Format-FslDriveLetter -Command 'set' -Letter 'G'" -WarningAction Stop
-                }
-            }
-            'remove' {
-                $RemoveDL = $true
-            }
-        }
 
-        ## Helper functions, Get-DriveLetter, Set-FslDriveletters, remove-fslDriveletter, and dismount-fsldisk
-        ## Will validate error handling.
-
+        ## Helper FsLogix functions, Get-DriveLetter, Set-FslDriveletters, remove-fslDriveletter, and dismount-fsldisk ##
+        ## Will validate error handling.                                                                               ##
         foreach ($vhd in $VHDs) {
- 
-            if ($GetDL) {
+
+            if ($Get) {
                 get-driveletter -VHDPath $vhd.path
                 dismount-FslDisk -path $vhd.path
             }
-            if ($SetDL) {
+            if ($Set) {
                 Set-FslDriveLetter -VHDPath $vhd.path -Letter $letter
             }
-            if ($RemoveDL) {
+            if ($Remove) {
                 Remove-FslDriveLetter -Path $vhd.path
             }
         }
     }
-    
+
     end {
     }
 }

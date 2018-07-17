@@ -5,7 +5,7 @@ $here = $here | Split-Path -Parent | Split-Path -Parent | Split-Path -Parent
 . "$here\$funcType\$sut"
 
 Describe $sut {
-    
+
     BeforeAll {
         if (-not(test-path -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhdx")) {
             convertto-vhdx -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhd"
@@ -14,7 +14,7 @@ Describe $sut {
 
     Context -Name 'Outputs that should throw' {
         it 'Invalid path'{
-            $incorrect_path = { convertTo-VHD -Path "C:\blah" -ErrorAction Stop } 
+            $incorrect_path = { convertTo-VHD -Path "C:\blah" -ErrorAction Stop }
             $incorrect_path | Should throw
         }
 
@@ -27,33 +27,47 @@ Describe $sut {
             $incorrect_path | should throw
         }
         it 'Used non-existing VHD, should throw' {
-            $invalid_path = { convertto-vhd -path "C:\Users\Danie\Documents\test2.vhdx" -ErrorAction Stop } 
+            $invalid_path = { convertto-vhd -path "C:\Users\Danie\Documents\test2.vhdx" -ErrorAction Stop }
             $invalid_path | should throw
         }
         it 'Used directory path, should throw'{
-            $invalid_path = { convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest" -ErrorAction Stop } 
+            $invalid_path = { convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest" -ErrorAction Stop }
             $invalid_path | should throw
         }
         it 'VHD already exists in this location'{
-            $Already_Exist = {convertTo-VHD -Path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd1.vhdx" -ErrorAction Stop} 
+            $Already_Exist = {convertTo-VHD -Path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd1.vhdx" -ErrorAction Stop}
             $Already_Exist | should throw
+        }
+        it 'VHD is attached should give warning and stop'{
+            mount-vhd -path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhdx'
+            {convertTo-VHD -path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhdx' -WarningAction Stop} | should throw
+            dismount-vhd -path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhdx'
         }
     }
 
-    Context -Name 'Test Remove-Item' {
+    Context -Name 'mock commands' {
         mock 'remove-item' -MockWith {$true}
 
         it 'Overwrite existing, Should throw' {
             {convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhdx" -overwrite -ErrorAction Stop} | should throw
         }
+
+        mock -CommandName Remove-item -MockWith {Throw $Error[0]}
+
+        it 'Remove-Item fails should give error, because disk already exists'{
+            {convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhdx" -ErrorVariable Error}
+            $Error.count -gt 0 | should be $true
+        }
+
+
     }
     Context -Name 'Test Convert to vhd' {
-        
+
         it 'Overwrite existing, Should not throw' {
             {convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhdx" -overwrite} | should not throw
         }
         it 'Overwrite existing and delete old .vhdx file, should not throw' {
-            {convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhdx" -overwrite -confirm} | should not throw
+            {convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\TestVHD1.vhdx" -overwrite -removeold} | should not throw
         }
     }
 }

@@ -1,4 +1,8 @@
 <#
+    .DESCRIPTION
+    Created by Jim Moyle @ FSLogix
+    Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
+
     .EXAMPLE
     Resize-FslDisk -SizeBytes 10gb -Path C:\Users\danie\
     Will retrieve all the VHD's in C:\Users\danie\ and resize them to 10gb.
@@ -203,7 +207,7 @@ function Resize-FslDisk {
             if($Percent -ne 0){
                 $SizeBytes += ($SizeBytes * $Percent)
             }
-            
+
             try {
                 $ResizeVHDParams = @{
                     Passthru    = $Passthru
@@ -250,7 +254,7 @@ function Resize-FslDisk {
                 $Error[0] | Write-Log
                 write-log -level Error "Failed to Dismount $vhd vhd will need to be manually dismounted"
             }
-        
+
             if (-not($null -eq $NewPath -or $NewPath -eq "")) {
                 try {
                     move-item -Path $vhd -Destination $NewPath -Force
@@ -262,7 +266,7 @@ function Resize-FslDisk {
                 write-log "$vhd was moved to $NewPath"
             }
 
-            
+
         }
     } #Process
     END {} #End

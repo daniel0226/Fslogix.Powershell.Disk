@@ -1,11 +1,11 @@
 function dismount-FslDisk {
     <#
         .SYNOPSIS
-        Dismounts a VHD or dismounts currently existing attached VHDs.
+        Dismounts a VHD or dismounts all currently existing attached VHDs.
 
         .DESCRIPTION
-        This function can be added to any script that requires dismounting
-        a vhd.
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
 
         .PARAMETER VHDPath
         Optional target path for VHD location.
@@ -25,45 +25,48 @@ function dismount-FslDisk {
         [System.String]$FullName,
 
         # Parameter help description
-        [Parameter(Position = 1,ValueFromPipelineByPropertyName = $true)]
+        [Parameter(Position = 1, ValueFromPipelineByPropertyName = $true)]
         [Switch]$DismountAll
     )
-    
+
     begin {
         set-strictmode -version latest
     }#begin
-    
+
     process {
         if ($FullName -ne "") {
+            if($FullName -notlike "*.vhd*"){
+                Write-Error "Disk must include .vhd/.vhdx extension." -ErrorAction Stop
+            }
             $name = split-path -Path $FullName -Leaf
             try {
                 Dismount-VHD -Path $FullName -ErrorAction Stop
-                Write-Verbose "Successfully dismounted $name"
-            }catch {
+                Write-Verbose "$(Get-Date): Successfully dismounted $name"
+            }
+            catch {
                 write-error $Error[0]
                 exit
             }
         }
-        if($DismountAll){
-            
-            $Get_Attached_VHDs = Get-Disk | select-object -Property Model, Location
+        if ($DismountAll) {
 
-            if($null -eq $Get_Attached_VHDs){
-                Write-Warning "Could not find any attached VHD's. Exiting script..."
-                Exit
-            }else{
-                foreach($vhd in $Get_Attached_VHDs){
-                    if($vhd.Model -like "Virtual Disk*"){
-                        $name = split-path -path $vhd.location -Leaf
-                        try{
-                            Dismount-VHD -path $vhd.location -ErrorAction Stop
-                            Write-Verbose "Succesfully dismounted VHD: $name"
-                        }catch{
-                            Write-Error $Error[0]
-                        }
-                    }else{
-                        #Write-Warning "$($vhd.Model) is not a virtual disk. Skipping"
+            $Get_Attached_VHDs = Get-Disk | select-object -Property Model, Location
+            $VHDs = $Get_Attached_VHDs | Where-Object {$_.Model -like "Virtual Disk*"}
+
+            if ($null -eq $VHDs) {
+                Write-Warning "Could not find any attached VHD's."
+            }
+            else {
+                foreach ($vhd in $VHDs) {
+                    $name = split-path -path $vhd.location -Leaf
+                    try {
+                        Dismount-VHD -path $vhd.location -ErrorAction Stop
+                        Write-Verbose "$(Get-Date): Succesfully dismounted VHD: $name"
                     }
+                    catch {
+                        Write-Error $Error[0]
+                    }
+
                 }
             }
         }

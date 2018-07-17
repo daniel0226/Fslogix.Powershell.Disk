@@ -3,6 +3,10 @@ function convertTo-VHD {
         .PARAMETER path
         Path to the given .vhd.
 
+        .DESCRIPTION
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
+
         .PARAMETER Remove_Old
         If user wants to remove the old VHD after conversion.
 
@@ -38,13 +42,13 @@ function convertTo-VHD {
 
 
     )
-    
+
     begin {
         set-strictmode -Version latest
         $Confirm_Delete = $false
         $Confirm_Overwrite = $false
     }
-    
+
     process {
 
         if(-not(test-path -path $Path)){
@@ -54,38 +58,36 @@ function convertTo-VHD {
         if($Path -notlike "*.vhdx"){
             Write-Error "Path must include .vhdx extension" -ErrorAction Stop
         }
-    
+
         $VHD = Get-FslDisk -path $Path
-        
-        if ($Remove_Old) { 
-            $Confirm_Delete = $true 
+
+        if ($Remove_Old) {
+            $Confirm_Delete = $true
         }
 
         if($Remove_Existing){
             $Confirm_Overwrite = $true
         }
-    
+
         $name = split-path -path $VHD.Path -leaf
         $Old_Path = $VHD.path
         $New_Path = $Old_path.substring(0,$Old_Path.length-1)
 
-        $AlreadyExists = get-childitem -path $New_Path -ErrorAction SilentlyContinue
-        if($null -ne $AlreadyExists){
+        if(test-path -path $New_Path){
             if($Confirm_Overwrite){
                 try{
-                    remove-item -Path $New_Path -Force 
+                    remove-item -Path $New_Path -Force
                 }catch{
                     Write-Error $Error[0]
                 }
             }else{
-                Write-warning "User denied overwrite. Cancel conversion..."
+                Write-Warning "VHD: $New_Path already exists here."
                 break
             }
         }
-    
-        if($VHD.attached -eq $true){
-            Write-Warning "VHD $name is currently in use. Cannot convert."
-            exit
+
+        if($VHD.attached){
+            Write-Warning "VHD $name is currently in use. Cannot convert." -ErrorAction Stop
         }
 
         try {
@@ -95,7 +97,7 @@ function convertTo-VHD {
             write-error $Error[0]
         }
 
-        Write-Verbose "$name succesfully converted to a .vhd"
+        Write-Verbose "$(Get-Date): $name succesfully converted to a .vhd"
 
         if ($Confirm_Delete) {
             try {
@@ -107,7 +109,7 @@ function convertTo-VHD {
             }
         }
     }#process
-    
+
     end {
     }
 }

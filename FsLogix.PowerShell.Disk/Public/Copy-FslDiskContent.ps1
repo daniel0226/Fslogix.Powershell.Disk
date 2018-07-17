@@ -3,6 +3,10 @@ function Copy-FslDiskContent {
         .SYNOPSIS
         Copies contents of a VHD to another VHD
 
+        .DESCRIPTION
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
+
         .PARAMETER FirstVHDPath
         The path to the first VHD we are copying from
 
@@ -47,11 +51,14 @@ function Copy-FslDiskContent {
         [Parameter(Position = 4)]
         [Switch]$Overwrite
     )
-    
+
     begin {
-        ## Helper function to validate requirements
         set-strictmode -Version latest
-        #If paths are invalid, get-driveletter script will handle it        
+    }
+
+    process {
+
+        ## FsLogix's helper function: Get-Driveletter ##
         $First_DL = get-driveletter -path $FirstVHDPath
         $Second_DL = get-driveletter -path $SecondVHDPath
 
@@ -60,9 +67,7 @@ function Copy-FslDiskContent {
 
         $FirstFilePath = join-path($First_DL) ($FirstFilePath)
         $SecondFilePath = join-path($Second_DL) ($SecondFilePath)
-    }
-    
-    process {
+
         if (-not(test-path -path $FirstFilePath)) {
             write-error "Could not find path: $firstfilepath" -ErrorAction Stop
         }
@@ -71,27 +76,28 @@ function Copy-FslDiskContent {
         }
 
         $Contents = get-childitem -path $FirstFilePath
-        if ($Contents.Count -eq 0) {
+
+        if ($null -eq $Contents) {
             Write-Error "No Files found in $FirstFilePath" -ErrorAction Stop
         }
 
-        $Contents | ForEach-Object { 
+        $Contents | ForEach-Object {
 
             if ($Overwrite) {
-                Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -Force
-                Write-Verbose "Successfully copied and overwritten VHD:$firstVHD $($_.fullname) to VHD: $secondVHD $secondfilepath"
+                Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Verbose "$(Get-Date): Successfully copied and overwritten VHD:$firstVHD $($_.fullname) to VHD: $secondVHD $secondfilepath"
             }else{
                 Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -ErrorAction Stop
-                Write-Verbose "Successfully Copied VHD:$firstVHD $($_.fullname) to VHD: $secondVHD $secondfilepath"
+                Write-Verbose "$(Get-Date): Successfully Copied VHD:$firstVHD $($_.fullname) to VHD: $secondVHD $secondfilepath"
             }
-           
+
         }#foreach
 
         $FirstVHDPath | dismount-FslDisk
         $SecondVHDPath | dismount-FslDisk
-      
+
     }
-    
+
     end {
     }
 }

@@ -1,7 +1,11 @@
 function move-FslDisk {
     <#
         .SYNOPSIS
-        Migrates a vhd to another location.
+        Moves a vhd to another location.
+
+        .DESCRIPTION
+        Created by Daniel Kim @ FSLogix
+        Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
 
         .PARAMETER Path
         Location for either all VHD's or a specific VHD
@@ -36,10 +40,10 @@ function move-FslDisk {
         [Parameter(Position = 2)]
         [Switch]$Overwrite
     )
-    
+
     begin {
         set-strictmode -Version latest
-        
+
         if (-not(test-path -path $path)) {
             write-error "Path: $path is invalid." -ErrorAction Stop
         }
@@ -48,11 +52,11 @@ function move-FslDisk {
             write-error "Destination: $Destination is invalid." -ErrorAction Stop
         }
     }
-    
+
     process {
 
         $VhdDetails = get-fslvhd -path $path
-        
+
 
         foreach ($currVhd in $VhdDetails) {
 
@@ -62,11 +66,11 @@ function move-FslDisk {
             if ($currVhd.attached) {
                 Write-Error "VHD: $name is currently in use." -ErrorAction continue ## Continue to move other disks, but skip the one's we can't
             }
-            else { 
+            else {
                 if ($CheckIfAlreadyExists) {
                     if ($Overwrite) {
                         move-item -path $currVhd.path -Destination $Destination -Force
-                        Write-Verbose "Overwrited and moved $name to $Destination"
+                        Write-Verbose "$(Get-Date): Overwrited and moved $name to $Destination"
                     }
                     else {
                         Write-Error "$name already exists at $Destination" -ErrorAction Continue ## Continue to move other disks, but skip the one's we can't
@@ -75,7 +79,7 @@ function move-FslDisk {
                 else {
                     try {
                         move-item -path $currVhd.path -Destination $Destination -Force
-                        Write-Verbose "Moved $name to $Destination"
+                        Write-Verbose "$(Get-Date): Moved $name to $Destination"
                     }
                     catch {
                         Write-Error $error[0]
@@ -85,7 +89,7 @@ function move-FslDisk {
             }#else attached
         }#foreach
     }#process
-    
+
     end {
     }
 }

@@ -1,7 +1,7 @@
-function move-FslToDisk {
+function copy-FslToDisk {
     <#
         .SYNOPSIS
-        Moves files/folders to a vhd.
+        Copies files/folders to a vhd.
 
         .DESCRIPTION
         Created by Daniel Kim @ FSLogix
@@ -9,7 +9,7 @@ function move-FslToDisk {
 
         .PARAMETER VhdPath
         The user specified VHD path. Path can either be a folder containing VHD's
-        or an individual disk. If user inputs a folder path, it'll transfer the files
+        or an individual disk. If user inputs a folder path, it'll copy the files
         to all the disks in this folder path.
 
         .PARAMETER FilePath
@@ -23,7 +23,7 @@ function move-FslToDisk {
         with the same name.
 
         .EXAMPLE
-        move-fsltodisk -path "C:\users\danie\ODFC\test1.vhd" -Filepath "C:users\danie\Desktop\Contents" -Destination "test"
+        copy-fsltodisk -path "C:\users\danie\ODFC\test1.vhd" -Filepath "C:users\danie\Desktop\Contents" -Destination "test"
         Will obtain the VHD, test1.vhd, and transfer the files on the user's desktop called "Contents"
         within the VHD folder, test.
     #>
@@ -43,7 +43,10 @@ function move-FslToDisk {
         [Switch]$Overwrite,
 
         [Parameter(Position = 4)]
-        [Switch]$dismount
+        [Switch]$dismount,
+
+        [Parameter(Position = 5)]
+        [switch]$recurse
     )
 
     begin {
@@ -73,29 +76,21 @@ function move-FslToDisk {
                 Write-Error "Could not find path: $VHD_FILE_LOCATION" -ErrorAction Stop
             }
 
-            Write-Verbose "$(Get-Date): Moving file contents to $VHD_FILE_LOCATION"
-
-            if ($Overwrite) {
-
-                try {
-                    move-item -path $FilePath -Destination $VHD_File_Location -Force
-                    Write-Verbose "$(Get-Date): Transfered file contents to $VHD_File_Location"
-                }
-                catch {
-                    Write-Error $Error[0]
-                }
-            }else{
-
-                try {
-                    #Don't need recurse parameter, is automatically recurses
-                    move-item -path $FilePath -Destination $VHD_File_Location
-                }
-                catch {
-                    Write-Error $Error[0]
-                }
-
+            Write-Verbose "$(Get-Date): Copying file contents to $VHD_FILE_LOCATION"
+            $Command = "copy-item -path $FilePath -Destination $VHD_File_Location"
+            if($Overwrite){
+                $Command += " -force"
             }
-            if($dismount){
+            if($recurse){
+                $Command += " -Recurse"
+            }
+            try{
+                Invoke-Expression $Command
+                Write-Verbose "$(Get-Date): Copied $FilePath to $VHD_File_Location"
+            }catch{
+                Write-Error $Error[0]
+            }
+            if ($dismount) {
                 dismount-fsldisk -path $vhd.path -ErrorAction SilentlyContinue
             }
         }
