@@ -26,6 +26,16 @@ function copy-FslToDisk {
         copy-fsltodisk -path "C:\users\danie\ODFC\test1.vhd" -Filepath "C:users\danie\Desktop\Contents" -Destination "test"
         Will obtain the VHD, test1.vhd, and transfer the files on the user's desktop called "Contents"
         within the VHD folder, test.
+
+        .EXAMPLE
+        copy-fsltodisk -path "C:\users\danie\ODFC\test1.vhd" -Filepath "C:users\danie\Desktop\Contents" -Destination "test" -recurse
+        Will obtain the VHD, test1.vhd, and transfer the files on the user's desktop called "Contents" and it's subdirectories/files to test1.vhd
+
+        .EXAMPLE
+        copy-fsltodisk -path "C:\users\danie\ODFC\test1.vhd" -Filepath "C:users\danie\Desktop\Contents" -Destination "test" -Overwrite -Dismount
+        Will obtain the VHD, test1.vhd, and transfer the files on the user's desktop called "Contents". It will overwrite any pre-existing
+        files with the same name and dismount the virtual disk upon completion.
+
     #>
     [CmdletBinding()]
     param (
@@ -84,12 +94,10 @@ function copy-FslToDisk {
             if($recurse){
                 $Command += " -Recurse"
             }
-            try{
-                Invoke-Expression $Command
-                Write-Verbose "$(Get-Date): Copied $FilePath to $VHD_File_Location"
-            }catch{
-                Write-Error $Error[0]
-            }
+
+            Invoke-Expression $Command
+            Write-Verbose "$(Get-Date): Copied $FilePath to $VHD_File_Location"
+
             if ($dismount) {
                 dismount-fsldisk -path $vhd.path -ErrorAction SilentlyContinue
             }

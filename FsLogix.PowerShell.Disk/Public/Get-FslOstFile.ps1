@@ -27,10 +27,17 @@ function Get-FslOstFile {
         Get-FslOstFile -path 'C:\users\test.vhd' -remove
         Removes any duplicate osts found in test.vhd
 
+        .EXAMPLE
+        Get-FslOstFile -path 'C:\users\test.vhd' -output
+        Outputs the duplicate osts in test.vhd
+
+        .EXAMPLE
+        Get-FslOstFile -path 'C:\users\test' -remove
+        Find's all the virtual disks in directory 'test' and removes the duplicate osts
 
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'None')]
     param (
         [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true)]
         [System.string]$path,
@@ -42,7 +49,13 @@ function Get-FslOstFile {
         [Switch]$output,
 
         [Parameter(Position = 3)]
-        [Switch]$full
+        [Switch]$full,
+
+        [Parameter(Position = 4, ParameterSetName = 'index', Mandatory = $true)]
+        [int]$Start,
+
+        [Parameter(Position = 5, ParameterSetName = 'index', Mandatory = $true)]
+        [int]$End
     )
 
     begin {
@@ -57,14 +70,16 @@ function Get-FslOstFile {
         }
 
         ## Helper function get-fslvhd ##
-        $VHDs = get-fslvhd -path $path
+        $VHDs = get-fslvhd -path $path -start $Start -end $End
 
         foreach ($vhd in $VHDs) {
+            $removed = 0
             $DriveLetter = get-driveletter -path $vhd.path
             $osts = get-childitem -path (join-path $DriveLetter *.ost) -recurse
 
             if ($null -eq $osts) {
                 Write-Warning "Could not find OSTs in $($vhd.path)"
+                continue
             }
             else {
                 try {
@@ -78,14 +93,20 @@ function Get-FslOstFile {
                 Write-Verbose "$(Get-Date): Retrieved $count Ost(s) in $(split-path $vhd.path -leaf)"
             }
 
-            if($full){
-                foreach($ost in $osts){
+            if ($full) {
+                foreach ($ost in $osts) {
                     Write-Verbose "$(Get-Date): OST located at: $ost"
                 }
             }
 
-            if($output){
+            if ($output) {
                 Write-Output $osts
+            }
+
+            if ($count -eq 1) {
+                if ($Remove) {
+                    Write-Verbose "$(Get-Date): Only 1 Ost, skipping deletion."
+                }
             }
 
             ## If user wants to delete Osts ##
@@ -93,29 +114,21 @@ function Get-FslOstFile {
                 if ($Remove) {
                     $latestOst = $osts | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
 
-                    try {
-                        $osts | Where-Object {$_.Name -ne $latestOst.Name} | Remove-Item -Force -ErrorAction Stop
-                        $Totalremoved += $($count - 1)
-                        Write-Verbose "$(Get-Date): Successfully removed duplicate ost files"
-                    }
-                    catch {
-                        Write-Error $Error[0]
-                    }
+                    $osts | Where-Object {$_.Name -ne $latestOst.Name} | Remove-Item -Force -ErrorAction Stop
+                    $removed += $($count - 1)
+                    $Totalremoved += $($count - 1)
+                    Write-Verbose "$(Get-Date): Successfully removed duplicate ost files"
 
-                    Write-Verbose "$(Get-Date): Removed $TotalRemoved OST's"
+
+                    Write-Verbose "$(Get-Date): Removed $Removed OST's"
                 }
+            }
 
-            }else{
-                Write-Verbose "$(Get-Date): Only one OST found. SKipping deletion."
-            }
-            try {
-                ## Helper function dismount-fsldisk ##
-                dismount-FslDisk -path $vhd.path
-            }
-            catch {
-                Write-Error $Error[0]
-            }
+            ## Helper function dismount-fsldisk ##
+            dismount-FslDisk -path $vhd.path
+
         }#foreach
+        Write-Verbose "Removed a total of: $TotalRemoved OST files."
 
     }
 

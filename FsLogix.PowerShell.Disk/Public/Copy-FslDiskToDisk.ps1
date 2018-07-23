@@ -1,4 +1,4 @@
-function Copy-FslDiskContent {
+function Copy-FslDiskToDisk {
     <#
         .SYNOPSIS
         Copies contents of a VHD to another VHD
@@ -23,11 +23,11 @@ function Copy-FslDiskContent {
         Optional parameter to overwrite file contents if already existing in second VHD
 
         .EXAMPLE
-        copy-fsldiskcontents -vhd1 C:\Users\danie\Documents\test1.vhd -Vhd2 C:\Users\Danie\Documents\test2.vhd -overwrite
+        Copy-FslDiskToDisk -vhd1 C:\Users\danie\Documents\test1.vhd -Vhd2 C:\Users\Danie\Documents\test2.vhd -overwrite
         Will copy all the contents in test1.vhd into test2.vhd and overwrite any pre-existing files.
 
         .EXAMPLE
-        copy-fsldiskcontents -vhd1 C:\Users\danie\Documents\test1.vhd -file scripts\public -Vhd2 C:\Users\Danie\Documents\test2.vhd -file2 scripts\test\public -overwrite
+        Copy-FslDiskToDisk -vhd1 C:\Users\danie\Documents\test1.vhd -file scripts\public -Vhd2 C:\Users\Danie\Documents\test2.vhd -file2 scripts\test\public -overwrite
         Will copy all the contents in test1.vhd's path 'scripts\public' into the test2.vhd's path 'script\test\public'
     #>
     [CmdletBinding()]
@@ -62,7 +62,7 @@ function Copy-FslDiskContent {
         $First_DL = get-driveletter -path $FirstVHDPath
         $Second_DL = get-driveletter -path $SecondVHDPath
 
-        $FirstVHD = split-path $FirstVHDPath -Leaf
+        #$FirstVHD = split-path $FirstVHDPath -Leaf
         $SecondVHD = split-path $SecondVHDPath -leaf
 
         $FirstFilePath = join-path($First_DL) ($FirstFilePath)
@@ -85,10 +85,10 @@ function Copy-FslDiskContent {
 
             if ($Overwrite) {
                 Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -Force -ErrorAction SilentlyContinue
-                Write-Verbose "$(Get-Date): Successfully copied and overwritten VHD:$firstVHD $($_.fullname) to VHD: $secondVHD $secondfilepath"
+                Write-Verbose "$(Get-Date): Successfully copied $($_.fullname) to VHD: $secondVHD"
             }else{
                 Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -ErrorAction Stop
-                Write-Verbose "$(Get-Date): Successfully Copied VHD:$firstVHD $($_.fullname) to VHD: $secondVHD $secondfilepath"
+                Write-Verbose "$(Get-Date): Successfully Copied $($_.fullname) to VHD: $secondVHD"
             }
 
         }#foreach

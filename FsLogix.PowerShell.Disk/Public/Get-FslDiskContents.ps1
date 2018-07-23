@@ -11,7 +11,7 @@ function Get-FslDiskContents {
         .PARAMETER VHDPath
         Path to the VHD. Cannot be a folder, must be a VHD and include .vhd/.vhdx extension.
 
-        .PARAMETER path
+        .PARAMETER folderpath
         An optional folder path within the VHD
 
         .EXAMPLE
@@ -23,8 +23,12 @@ function Get-FslDiskContents {
         returns all the contents in 'share\test' directory within test1.vhd
 
         .EXAMPLE
-        get-fsldiskcontents C:\users\danie\ODFC\test1.vhd share\test -recurrse
+        get-fsldiskcontents C:\users\danie\ODFC\test1.vhd share\test -recurse
         returns all the contents in 'share\test' directory within test1.vhd and all it's subdirectories/files.
+
+        .EXAMPLE
+        get-fsldiskcontents C:\users\danie\ODFC\test1.vhd share\test
+        returns all the contents in 'share\test' directory within test1.vhd
     #>
     [CmdletBinding()]
     param (
