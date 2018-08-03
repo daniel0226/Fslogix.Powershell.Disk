@@ -1,3 +1,4 @@
+#Requires -Modules "Hyper-V"
 function New-FslDisk {
     <#
         .SYNOPSIS
@@ -48,23 +49,26 @@ function New-FslDisk {
         [Alias("path")]
         [System.string]$NewVHDPath,
 
-        [Parameter(Position = 1)]
+        [Parameter(Position = 1, Mandatory = $true)]
+        [System.String]$Name,
+
+        [Parameter(Position = 2)]
         [Alias("ParentPath")]
         [System.string]$VHDParentPath,
 
-        [Parameter(Position = 2)]
+        [Parameter(Position = 3)]
         [Alias("Size")]
         [System.int64]$SizeInGB,
 
-        [Parameter(Position = 3)]
+        [Parameter(Position = 4)]
         [ValidateSet("Dynamic", "Fixed")]
         [System.String]$Type = "Dynamic",
 
-        [Parameter(Position = 4)]
+        [Parameter(Position = 5)]
         [Alias("Overwrite")]
         [switch]$Confirm_Delete,
 
-        [Parameter(Position = 5,ValuefromPipelineByPropertyName = $true, ValuefromPipeline = $true)]
+        [Parameter(Position = 6, ValuefromPipelineByPropertyName = $true, ValuefromPipeline = $true)]
         [regex]$OriginalMatch = "^(.*?)_S-\d-\d+-(\d+-){1,14}\d+$"
 
     )#param
@@ -92,7 +96,7 @@ function New-FslDisk {
         if ($SizeInGB -eq 0) {
             $SizeInGB = 10gb
         }
-        if(($ParentPath_Found -eq $false) -and ($Fixed_Found -eq $false)){
+        if (($ParentPath_Found -eq $false) -and ($Fixed_Found -eq $false)) {
             $Custom_VHD = $true
         }
 
@@ -100,21 +104,23 @@ function New-FslDisk {
 
     process {
 
+        $NewVHDPath = $NewVHDPath + "\" + $Name
+
         if ($NewVHDPath -notlike "*.vhd*") {
-            Write-Error "The file extension for $NewVHDPath must include a .vhd or .vhdx extension."
-            exit
-        } else {
+            Write-Error "The file extension for $NewVHDPath must include a .vhd or .vhdx extension." -ErrorAction Stop
+        }
+        else {
             $VHD_Name = split-path -path $NewVHDPath -Leaf
         }
 
         if (test-path -path $NewVHDPath) {
             if ($Overwrite -eq $false) {
-                Write-Error "VHD already exists here! User confirmed false for overwrite."
-                exit
-            }else {
+                Write-Error "VHD already exists here! User confirmed false for overwrite." -ErrorAction Stop
+            }
+            else {
                 Write-Verbose "$(Get-Date): Overwriting old VHD..."
                 try {
-                    remove-item -path $NewVHDPath -ErrorAction stop -Force
+                    remove-item -path $NewVHDPath -Force -ErrorAction stop
                 }
                 catch {
                     Write-Verbose "$(Get-Date): Could not delete old VHD."
@@ -124,19 +130,19 @@ function New-FslDisk {
             }
         }#Test-path
 
-        $index = $vhd1.IndexOf('.vhd')
-        if ($VHD_Name.substring(0,$index) -match $OriginalMatch){
+        $index = $VHD_Name.IndexOf('.vhd')
+        if ($VHD_Name.substring(0, $index) -match $OriginalMatch) {
             Write-Verbose "$(Get-Date): Validated VHD's name: $VHD_Name"
-        }else{
+        }
+        else {
             Write-Warning "VHD: $VHD_Name does not match regex."
         }
-
 
         if ($ParentPath_Found) {
             $Fixed_Found = $false
             try {
                 Write-Verbose "$(Get-Date): Initializing VHD with Parent..."
-                $CreateVHD = New-VHD -path $NewVHDPath -ParentPath $VHDParentPath -SizeBytes $size -ErrorAction Stop
+                $CreateVHD = New-VHD -path $NewVHDPath -ParentPath $VHDParentPath -SizeBytes $SizeInGB -ErrorAction Stop
             }
             catch {
                 Write-Verbose "$(Get-Date): Could not initialize VHD."
@@ -156,7 +162,8 @@ function New-FslDisk {
             }
         }#if fixed_found
 
-        if($Custom_VHD){#dynamic
+        if ($Custom_VHD) {
+            #dynamic
             try {
                 Write-Verbose "$(Get-Date): Initializing Dynamic VHD..."
                 $CreateVHD = New-VHD -Path $NewVHDPath -SizeBytes $SizeInGB -Dynamic -ErrorAction stop
@@ -187,17 +194,6 @@ function New-FslDisk {
             Write-Verbose "$(Get-Date): Could not format volume."
             Write-Error $Error[0]
             exit
-        }
-
-        try{
-            Write-Verbose "$(Get-Date): Validating VHD..."
-            if(test-fslvhd -path $NewVHDPath){
-                Write-Verbose "$(Get-Date): VHD succesfully created. Exiting script..."
-            }else{
-                Write-Warning "$(Get-Date): VHD was created but unable to be used."
-            }
-        }catch{
-            Write-Error $Error[0]
         }
 
     } #process

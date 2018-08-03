@@ -7,14 +7,20 @@ function Format-FslDriveLetter {
         Created by Daniel Kim @ FSLogix
         Github: https://github.com/FSLogix/Fslogix.Powershell.Disk
 
-        .PARAMETER VHDpath
-        Path to a specificed VHD or directory of VHD's.
+        .PARAMETER Get
+        Returns the driveletter associated with the VHD. If none is available, returns the path.
 
-        .PARAMETER Command
-        User command to either get a driveletter, set a driveletter, or remove a driveletter.
+        .PARAMETER Remove
+        Removes the driveletter associated with the VHD.
+
+        .PARAMETER Set
+        Sets a driveletter to a vhd
 
         .PARAMETER Letter
-        Letter to assign if user opts to set a drive letter
+        User associated letter when setting vhd's driveletter
+
+        .PARAMETER Assign
+        Automatically assigns a driveletter, starting from Z.
 
         .EXAMPLE
         format-fsldriveletter -path C:\users\danie\documents\ODFC\test1.vhd -get
@@ -27,11 +33,11 @@ function Format-FslDriveLetter {
         format-fsldriveletter -path C:\users\danie\documents\ODFC\test1.vhd -remove
         Remove's the driveltter on test1.vhd
     #>
-    [CmdletBinding(DefaultParametersetName='None')]
+    [CmdletBinding(DefaultParametersetName = 'None')]
     param (
 
         [Parameter(Position = 0, Mandatory = $true,
-        ValueFromPipeline = $true)]
+            ValueFromPipeline = $true)]
         [alias("path")]
         [System.String]$VhdPath,
 
@@ -44,9 +50,18 @@ function Format-FslDriveLetter {
         [Parameter(Position = 3, ParameterSetName = 'SetDL')]
         [Switch]$Set,
 
-        [Parameter(Position = 2, ParameterSetName = 'SetDL',Mandatory = $true)]
+        [Parameter(Position = 4, ParameterSetName = 'SetDL', Mandatory = $true)]
         [ValidatePattern('^[a-zA-Z]')]
-        [System.Char]$Letter
+        [System.Char]$Letter,
+
+        [Parameter(Position = 5, ParameterSetName = 'AssignDL')]
+        [Switch]$Assign,
+
+        [Parameter(Position = 6, ParameterSetName = 'index', Mandatory = $true)]
+        [int]$Start,
+
+        [Parameter(Position = 7, ParameterSetName = 'index', Mandatory = $true)]
+        [int]$End
 
 
     )
@@ -57,7 +72,7 @@ function Format-FslDriveLetter {
 
     process {
         ## Helper function to retrieve VHD's. Will handle errors ##
-        $VHDs = get-fslvhd -Path $VhdPath
+        $VHDs = get-fslvhd -Path $VhdPath -start $start -end $end
 
         ## Helper FsLogix functions, Get-DriveLetter, Set-FslDriveletters, remove-fslDriveletter, and dismount-fsldisk ##
         ## Will validate error handling.                                                                               ##
@@ -72,6 +87,34 @@ function Format-FslDriveLetter {
             }
             if ($Remove) {
                 Remove-FslDriveLetter -Path $vhd.path
+            }
+            if ($Assign) {
+                if($vhd.attached){
+                    Write-Warning "VHD Currently in use. Dismounting disk"
+                    Dismount-fsldisk $vhd.path
+                }
+                $Driveletterassigned = $false
+                $letter = [int][char]'Z'
+                while ($DriveLetterAssigned -eq $false) {
+                    try {
+                        $mount = Mount-DiskImage -ImagePath $vhd.path -NoDriveLetter -PassThru -ErrorAction Stop | get-diskimage
+                        $Disk = $mount | get-disk -ErrorAction Stop
+                        $Partition = $Disk | get-partition -ErrorAction Stop
+                        $Partition | Where-Object {$_.type -eq 'basic'} | set-partition -NewDriveLetter $letter -ErrorAction Stop 
+                        if ($Letter -eq 'C') {
+                            Write-Error "Cannot find free drive letter"
+                            exit
+                        }
+                        $DriveLetterAssigned = $true
+                    }
+                    catch {
+                        $letter --
+                    }
+                }
+                if($Driveletterassigned){
+                    Write-Verbose "Assigned DriveLetter: $([char]$letter)."
+                }
+                dismount-FslDisk $vhd.path
             }
         }
     }

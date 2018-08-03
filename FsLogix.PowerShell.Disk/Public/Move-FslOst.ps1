@@ -10,9 +10,6 @@
     Enumeration for migration will be an AD group called something like FSLogix.ODFC.Migrate
     Vhd’s will be placed in \\server\share\ODFC
     I would also like to add an option that makes the Copied files Read Denied after the copy is completed.
-
-    Script on hold since I have no ability to test active directory functionalites or use active directory cmdlets.
-
 #>
 function Move-FslOst {
     <#
@@ -30,7 +27,8 @@ function Move-FslOst {
         Active Directory group name
 
         .PARAMETER OST
-        Ost directory location, user must should %username% at the end.
+        Ost directory location, user should use %username% at the end.
+        User profile will replace the %username%.
         If OST is not specified, defaulted to: \\server\share\usersost\%username%
 
         .PARAMETER APPDATA
@@ -96,16 +94,19 @@ function Move-FslOst {
         ## Assumption is after enumerating ad users, we will obtain the corresponding user's ##
         ## OST within %username% and the corresponding user's appdata within 'profiles'      ##
         ## Will need to validate with David Young on exactly what he requires                ##
-        if ([System.string]::IsNullOrEmpty($ost)) {
+        if (!$ost) {
             $ost = '\\server\share\usersost\%username%'
+            Write-Verbose "$(get-date): User did not enter OST path: Defaulting to $ost."
         }
 
-        if ([System.string]::IsNullOrEmpty($AppData)) {
+        if (!$AppData) {
             $appdata = '\\server\share\users\profiles'
+            Write-Verbose "$(get-date): User did not enter AppData profile directory. Defaulting to $appdata."
         }
 
-        if ([System.string]::IsNullOrEmpty($DiskDestination)) {
+        if (!$DiskDestination) {
             $DiskDestination = '\\server\share\ODFC'
+            Write-Verbose "$(get-date): User did not enter Destination director. Defaulted to $diskdestination."
         }
 
         if (-not(test-path $AppData)) {
@@ -115,40 +116,41 @@ function Move-FslOst {
             Write-Error "Could not find migrated disk path: $diskdestination" -ErrorAction Stop
         }
 
+        $Test_AppData_Dir = get-item $AppData
+        if(!$Test_AppData_Dir.PSIsContainer){
+            Write-Error "AppData path must be a directory/folder." -ErrorAction Stop
+        }
+
         $AppDataProfiles = get-childitem -path $AppData
 
         ## Enumerate Ad Group and obtain user information ##
         ## How are these values outputted?                ##
-        get-adgroupmember $AdGroup -Recursive | ForEach-Object {
-            $userData = get-aduser $_
+        get-adgroupmember $AdGroup -Recursive -ErrorAction Stop | ForEach-Object {
 
-            [System.String]$FSLFullUser = $userData.Name
-            [System.String]$FSLUser = $userData.SamAccountName
-            [System.String]$strSid = $userData.SID
+            [System.String]$FSLFullUser = $_.Name
+            [System.String]$FSLUser = $_.SamAccountName
+            [System.String]$strSid = $_.SID
 
+            Write-Verbose "$(Get-Date): Beginning OST migration for $FSLUser."
             Write-Verbose "$(Get-Date): FslFullUser: $FSLFullUser"
             write-verbose "$(Get-Date): FslUser: $FSLUser."
             Write-Verbose "$(Get-Date): FslSID: $strSid."
 
-            ## Obtain user's information                              ##
-            ## How are user's app data folder's generally named?      ##
-            ## How are ost folder's named?                            ##
-            ## Generic method to find the directories. Possibly wrong ##
-            $Users_AppData = $AppDataProfiles | Where-Object {$_.Name -like "*$strSid*"}
+            $Users_AppData = ($AppDataProfiles).where({$_.Name -like "*$strSid*"})
+            if ($null -eq $Users_AppData) {
+                Write-Error "Could not retrieve App Data profiles in $appdataprofiles" -ErrorAction Stop
+            }
             [System.String]$Users_AppDataDir = [System.String]$Users_AppData.FullName
             #[System.String]$Users_Migrated_VHD_Name = $FSLUser + "_" + $strSid + $VHDExtension
             [System.String]$Users_Migrated_VHD_Name = $Users_AppData.Name + $VHDExtension
 
-            if (![System.String]::IsNullOrEmpty($ost)) {
-                if ((split-path -path $ost -leaf) -ne '%username%') {
-                    $ost = $ost + "\" + [System.String]$FSLUser
-                }
-                else {
-                    $ost = $ost.Replace('%username%', $FSlUser)
-                }
+            ## Get the ost path ##
+            if ((split-path -path $ost -leaf) -ne '%username%') {
+                $ost = $ost + "\" + [System.String]$FSLUser
             }
-
-            $Users_Ost = Get-childitem -path $ost -Filter "*.ost"
+            else {
+                $ost = $ost.Replace('%username%', $FSlUser)
+            }
 
             ## Validate that the paths exist and are valid ##
             if (-not(test-path -path $ost)) {
@@ -156,19 +158,22 @@ function Move-FslOst {
             }
             else { Write-Verbose "$(Get-Date): $FslUser's OST is set."}
 
+            $Users_Ost = Get-childitem -path $ost -Filter "*.ost" -Recurse
+
             if (-not(test-path -path $Users_AppDataDir)) {
                 Write-Error "Could not retrieve AppData from path: $Users_AppDataDir" -ErrorAction Stop
             }
             else { Write-Verbose "$(Get-Date): $FslUser's AppData is set."}
 
             ## Create new Migrated VHD ##
-            [System.String]$Migrated_VHD = [System.String]$DiskDestination + "\" + [System.String]$Users_Migrated_VHD_Name
-            New-FslDisk -NewVHDPath $Migrated_VHD -SizeInGB $SizeInGB -Type $VHDtype -overwrite
+            [System.String]$Migrated_VHD = [System.String]$DiskDestination
+            New-FslDisk -NewVHDPath $Migrated_VHD -name $Users_Migrated_VHD_Name -SizeInGB $SizeInGB -Type $VHDtype -overwrite
+            $New_Migrated_VHD = $Migrated_VHD + "\" + $Users_Migrated_VHD_Name
 
-            if (-not(test-path -path $Migrated_VHD)) {
-                Write-Error "Could not find: $Migrated_VHD" -ErrorAction Stop
+            if (-not(test-path -path $New_Migrated_VHD)) {
+                Write-Error "Could not find: $New_Migrated_VHD" -ErrorAction Stop
             }
-            else {Write-Verbose "$(Get-Date): $FslUser's AppData is set."}
+            else {Write-Verbose "$(Get-Date): $FslUser's migrated disk is set."}
 
             ## Copy Appdata contents over ##
             if ($null -eq $Users_AppData) {
@@ -176,21 +181,24 @@ function Move-FslOst {
                 continue
             }
             else {
+                $AppDataDest = split-path $Users_AppDataDir -Leaf
                 Write-Verbose "$(Get-Date): Found $FslUser's AppData files."
-                Write-Verbose "$(Get-Date): Copying AppData to $Migrated_VHD"
-                copy-FslToDisk -VhdPath $Migrated_VHD -FilePath $Users_AppDataDir -Overwrite -recurse
+                Write-Verbose "$(Get-Date): Copying AppData to $New_Migrated_VHD\$appDataDest"
+                copy-FslToDisk -VhdPath $New_Migrated_VHD -FilePath $Users_AppDataDir -Destination $AppDataDest -Overwrite -recurse
             }
             if ($null -eq $Users_Ost) {
                 Write-Warning "Could not find $FslUser's Ost file."
                 continue
             }
             else {
+               # $OSTDest = split-path $Users_Ost.FullName -Leaf
                 Write-Verbose "$(Get-Date): Found $FslUser's OST file."
-                Write-Verbose "$(Get-Date): Copying OST to $Migrated_VHD"
-                copy-FslToDisk -VhdPath $Migrated_VHD -FilePath $Users_Ost.FullName -Overwrite -recurse
+                Write-Verbose "$(Get-Date): Copying OST to $New_Migrated_VHD"
+                copy-FslToDisk -VhdPath $New_Migrated_VHD -FilePath $Users_Ost.FullName -Overwrite -recurse
             }
-
-            $Migrated_VHD | dismount-fsldisk
+            Write-Verbose "$(Get-Date): Finished OST Migration for: $FslUser."
+            $New_Migrated_VHD | dismount-fsldisk
+            $ost = split-path -path $ost
         }#admember enumeration
     }#process
 

@@ -8,9 +8,13 @@ Describe $sut {
     #NEED TO ADD MORE TEST CASES
     context -name 'Outputs that should throw'{
         BeforeEach{
-            mock -CommandName get-fsldisk -MockWith {} -Verifiable
+            mock -CommandName Get-FslDisk -MockWith {
+                [PSCustomObject]@{
+                    Path = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx'
+                }
+            }
             mock -CommandName get-driveletter -MockWith {} -Verifiable
-            mock -CommandName join-path -MockWith {$true}
+            mock -CommandName join-path -MockWith {} -Verifiable
         }
         it 'Invalid vhd path'{
             {move-fsldiskcontents -path "C:\blah" -Destination "C:\Users\Danie\Documents" -Overwrite} | should throw
@@ -32,9 +36,32 @@ Describe $sut {
     context -Name 'Should not throw'{
         BeforeEach{
             mock -CommandName move-item -MockWith {$true}
+            mock -CommandName get-childitem -MockWith {
+                [PSCustomObject]@{
+                    Name = 'hi'
+                    fullname = 'C:\blah'
+                }
+            }
+            mock -CommandName Get-FslDisk -MockWith {
+                [PSCustomObject]@{
+                    Path = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx'
+                }
+            }
+            mock -CommandName test-path -MockWith {$true}
+            mock -CommandName get-driveletter -MockWith {}
+            mock -CommandName join-path -MockWith {}
         }
+
+        it 'test mock'{
+            $path = Get-FslDisk -Path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx'
+            $path.path | should be 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx'
+        }
+        
         it 'Valid inputs'{
-            {move-FslDiskContents -path 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx' -Destination 'C:\Users\Danie\Documents' -Overwrite} | should not throw
+            {move-FslDiskContents -vhdpath 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx' -Destination 'C:\Users\Danie\Documents' -Overwrite} | should not throw
+        }
+        it 'overwrite'{
+            {move-FslDiskContents -vhdpath 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd2.vhdx' -Destination 'C:\Users\Danie\Documents'} | should not throw
         }
     }
 }

@@ -37,7 +37,7 @@ function copy-FslToDisk {
         files with the same name and dismount the virtual disk upon completion.
 
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParametersetName = 'None')]
     param (
         [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
         [Alias("path")]
@@ -56,7 +56,16 @@ function copy-FslToDisk {
         [Switch]$dismount,
 
         [Parameter(Position = 5)]
-        [switch]$recurse
+        [alias("force")]
+        [switch]$recurse,
+
+        [Parameter(Position = 7, ParameterSetName = 'index', Mandatory = $true)]
+        [int]$Start,
+
+        [Parameter(Position = 8, ParameterSetName = 'index', Mandatory = $true)]
+        [int]$End
+
+
     )
 
     begin {
@@ -74,7 +83,7 @@ function copy-FslToDisk {
             Write-Error "Could not validate: $filepath" -ErrorAction Stop
         }
 
-        $VhdDetails = get-fslvhd -path $vhdpath
+        $VhdDetails = get-fslvhd -path $vhdpath -start $Start -end $End
 
         foreach ($vhd in $VhdDetails) {
 
@@ -82,19 +91,17 @@ function copy-FslToDisk {
             $DriveLetter = get-driveletter -path $vhd.path
             $VHD_File_Location = join-path($DriveLetter) ($Destination)
 
-            if (-not(test-path -path $VHD_File_Location)) {
-                Write-Error "Could not find path: $VHD_FILE_LOCATION" -ErrorAction Stop
-            }
-
             Write-Verbose "$(Get-Date): Copying file contents to $VHD_FILE_LOCATION"
-            $Command = "copy-item -path $FilePath -Destination $VHD_File_Location"
-            if($Overwrite){
-                $Command += " -force"
+            $Command = "robocopy $FilePath $VHD_File_Location /w:1 /r:1 /xj /sec /ns /nc /nfl"
+            #$Command = "copy-item -path $FilePath -Destination $VHD_File_Location"
+            if ($recurse) {
+                $Command += " /s /e"
             }
-            if($recurse){
-                $Command += " -Recurse"
+            if ($overwrite){
+                $Command += " /is"
             }
-
+            #$Command += " -Erroraction Silentlycontinue"
+ 
             Invoke-Expression $Command
             Write-Verbose "$(Get-Date): Copied $FilePath to $VHD_File_Location"
 

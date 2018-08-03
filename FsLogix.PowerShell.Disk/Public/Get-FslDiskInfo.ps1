@@ -27,13 +27,19 @@ function Get-FslDiskInfo {
         Get-FslDiskInfo -path 'C:\Users\Danie\VHD\Test1.vhd' -CSVFile 'C:\Users\Danie\Desktop\logging.csv'
         Will output the information about test1.vhd into csv file logging.csv.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParametersetName = 'None')]
     param (
         [Parameter(Position = 0, ValueFromPipeline = $true)]
         [System.String]$Path,
 
         [Parameter(Position = 1, ValueFromPipeline = $true)]
-        [System.String]$Csvfile
+        [System.String]$Csvfile,
+
+        [Parameter(Position = 4,ParameterSetName = 'index', Mandatory = $true)]
+        [int]$Start,
+
+        [Parameter(Position = 5,ParameterSetName = 'index', Mandatory = $true)]
+        [int]$End
 
     )
 
@@ -54,7 +60,7 @@ function Get-FslDiskInfo {
         if (![System.string]::IsNullOrEmpty($path)) {
 
             ## Helper function to retrieve virtual disks
-            $VHDs = get-fslVHD -path $Path
+            $VHDs = get-fslVHD -path $Path -start $Start -end $End
             $VHDInfo = $true
         }
         else {
@@ -78,15 +84,15 @@ function Get-FslDiskInfo {
         if ($VHDInfo) {
             foreach ($curvhd in $VHDs) {
                 $name = split-path -path $curvhd.path -leaf
-                $out = $curvhd | select-object @{ N = 'ComputerName'; E = {$_.ComputerName}},
-                                            @{ N = 'Name';          E = {$name}},
-                                            @{ N = 'Location';      E = {$_.path}},
-                                            @{ N = 'Format';        E = {$_.VhdFormat}},
-                                            @{ N = 'Type';          E = {$_.VhdType}},
-                                            @{ N = 'Size(GB)';      E = {$_.Size / 1gb}},
-                                            @{ N = 'Size(MB)';      E = {$_.Size / 1mb}},
-                                            @{ N = 'FreeSpace(GB)'; E = {[math]::round((($_.Size - $_.FileSize) / 1gb), 2)}},
-                                            @{ N = 'FreeSpace(MB)'; E = {[math]::round((($_.Size - $_.FileSize) / 1mb), 2)}}
+                $out = $curvhd | select-object  @{ N = 'ComputerName';      E = {$_.ComputerName}},
+                                                @{ N = 'Name';              E = {$name}},
+                                                @{ N = 'Location';          E = {$_.path}},
+                                                @{ N = 'Format';            E = {$_.VhdFormat}},
+                                                @{ N = 'Type';              E = {$_.VhdType}},
+                                                @{ N = 'Size(GB)';          E = {$_.Size / 1gb}},
+                                                @{ N = 'Size(MB)';          E = {$_.Size / 1mb}},
+                                                @{ N = 'FreeSpace(GB)';     E = {[math]::round((($_.Size - $_.FileSize) / 1gb), 2)}},
+                                                @{ N = 'FreeSpace(MB)';     E = {[math]::round((($_.Size - $_.FileSize) / 1mb), 2)}}
                 if ($ExportCsv) {
                     $out | Export-Csv -Path $Csvfile -NoTypeInformation -Append -Force
                 }
@@ -98,11 +104,13 @@ function Get-FslDiskInfo {
         if ($DiskInfo) {
             foreach ($disk in $Disks) {
 
-                $out = $disk | Select-Object @{ N = 'Drive'; E = {$_.Root    }},
-                                            @{ N = 'Used(GB)'; E = {$_.Used / 1gb}},
-                                            @{ N = 'Used(MB)'; E = {$_.Used / 1mb}},
-                                            @{ N = 'Free(GB)'; E = {$_.Free / 1gb}},
-                                            @{ N = 'Free(MB)'; E = {$_.Free / 1mb}}
+                $out = $disk | Select-Object @{ N = 'Drive';    E = {$_.Root            }},
+                                             @{ N = 'Name';      E = {$_.Name            }},
+                                             @{ N = 'Location';  E = {$_.CurrentLocation }},
+                                             @{ N = 'Used(GB)';  E = {$_.Used / 1gb      }},
+                                             @{ N = 'Used(MB)';  E = {$_.Used / 1mb      }},
+                                             @{ N = 'Free(GB)';  E = {$_.Free / 1gb      }},
+                                             @{ N = 'Free(MB)';  E = {$_.Free / 1mb      }}
 
                 if ($ExportCsv) {
                     $out | Export-Csv -path $Csvfile -NoTypeInformation -Append -Force

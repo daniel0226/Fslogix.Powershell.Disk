@@ -29,7 +29,7 @@ function move-FslDisk {
         move-fsldisk -path C:\Users\danie\ODFC -Destination C:\Users\danie\FSLOGIX -overwrite Yes
         Migrates all the VHD's in ODFC to FSLOGIX and overwrites if the VHD already exists.
     #>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'none')]
     param (
         [Parameter(Position = 0, Mandatory = $true)]
         [System.String]$path,
@@ -38,7 +38,13 @@ function move-FslDisk {
         [System.String]$Destination,
 
         [Parameter(Position = 2)]
-        [Switch]$Overwrite
+        [Switch]$Overwrite,
+
+        [Parameter(Position = 3,ParameterSetName = 'index', Mandatory = $true)]
+        [int]$Start,
+
+        [Parameter(Position = 4,ParameterSetName = 'index', Mandatory = $true)]
+        [int]$End
     )
 
     begin {
@@ -55,7 +61,7 @@ function move-FslDisk {
 
     process {
 
-        $VhdDetails = get-fslvhd -path $path
+        $VhdDetails = get-fslvhd -path $path -start $Start -end $end
 
 
         foreach ($currVhd in $VhdDetails) {
@@ -64,7 +70,7 @@ function move-FslDisk {
             $CheckIfAlreadyExists = Get-childitem -path $Destination | Where-Object {$_.Name -eq $name}
 
             if ($currVhd.attached) {
-                Write-Error "VHD: $name is currently in use." -ErrorAction continue ## Continue to move other disks, but skip the one's we can't
+                Write-Error "VHD: $name is currently in use." -ErrorAction Stop
             }
             else {
                 if ($CheckIfAlreadyExists) {
@@ -73,18 +79,12 @@ function move-FslDisk {
                         Write-Verbose "$(Get-Date): Overwrited and moved $name to $Destination"
                     }
                     else {
-                        Write-Error "$name already exists at $Destination" -ErrorAction Continue ## Continue to move other disks, but skip the one's we can't
+                        Write-Error "$name already exists at $Destination" -ErrorAction stop
                     }
                 }
                 else {
-                    try {
-                        move-item -path $currVhd.path -Destination $Destination -Force
-                        Write-Verbose "$(Get-Date): Moved $name to $Destination"
-                    }
-                    catch {
-                        Write-Error $error[0]
-                        continue
-                    }
+                    move-item -path $currVhd.path -Destination $Destination -Force
+                    Write-Verbose "$(Get-Date): Moved $name to $Destination"
                 }#else checkifalreadyexists
             }#else attached
         }#foreach

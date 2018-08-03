@@ -62,9 +62,6 @@ function Copy-FslDiskToDisk {
         $First_DL = get-driveletter -path $FirstVHDPath
         $Second_DL = get-driveletter -path $SecondVHDPath
 
-        #$FirstVHD = split-path $FirstVHDPath -Leaf
-        $SecondVHD = split-path $SecondVHDPath -leaf
-
         $FirstFilePath = join-path($First_DL) ($FirstFilePath)
         $SecondFilePath = join-path($Second_DL) ($SecondFilePath)
 
@@ -74,25 +71,21 @@ function Copy-FslDiskToDisk {
         if (-not(test-path -path $SecondFilePath)) {
             write-error "Could not find path: $SecondFilePath" -ErrorAction Stop
         }
+        Write-Verbose "Copying $FirstFIlePath to $SecondFilePath"
 
         $Contents = get-childitem -path $FirstFilePath
 
         if ($null -eq $Contents) {
-            Write-Error "No Files found in $FirstFilePath" -ErrorAction Stop
+            Write-Warning "No Files found in $FirstFilePath"
         }
 
-        $Contents | ForEach-Object {
-
-            if ($Overwrite) {
-                Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -Force -ErrorAction SilentlyContinue
-                Write-Verbose "$(Get-Date): Successfully copied $($_.fullname) to VHD: $secondVHD"
+        foreach($items in $Contents){
+            if($Overwrite){
+                copy-item -Path $items.fullname -Destination $SecondFilePath -Recurse -Force -ErrorAction SilentlyContinue
             }else{
-                Copy-Item -path $_.FullName -Destination $SecondFilePath -Recurse -ErrorAction Stop
-                Write-Verbose "$(Get-Date): Successfully Copied $($_.fullname) to VHD: $secondVHD"
+                copy-item -Path $items.fullname -Destination $SecondFilePath -Recurse -ErrorAction SilentlyContinue
             }
-
-        }#foreach
-
+        }
         $FirstVHDPath | dismount-FslDisk
         $SecondVHDPath | dismount-FslDisk
 

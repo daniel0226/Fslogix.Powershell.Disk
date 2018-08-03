@@ -35,12 +35,12 @@ function dismount-FslDisk {
 
     process {
         if ($FullName -ne "") {
-            if($FullName -notlike "*.vhd*"){
+            if ($FullName -notlike "*.vhd*") {
                 Write-Error "Disk must include .vhd/.vhdx extension." -ErrorAction Stop
             }
             $name = split-path -Path $FullName -Leaf
             try {
-                Dismount-VHD -Path $FullName -ErrorAction Stop
+                Dismount-DiskImage -ImagePath $FullName -ErrorAction Stop
                 Write-Verbose "$(Get-Date): Successfully dismounted $name"
             }
             catch {
@@ -51,18 +51,18 @@ function dismount-FslDisk {
         if ($DismountAll) {
 
             $Get_Attached_VHDs = Get-Disk | select-object -Property Model, Location
-            $VHDs = $Get_Attached_VHDs | Where-Object {$_.Model -like "Virtual Disk*"}
-
+            $VHDs = $Get_Attached_VHDs | where-object {$_.Model -like "Virtual Disk*"}
+           
             if ($null -eq $VHDs) {
                 Write-Warning "Could not find any attached VHD's."
             }
             else {
                 foreach ($vhd in $VHDs) {
                     $name = split-path -path $vhd.location -Leaf
-                   
-                    Dismount-VHD -path $vhd.location -ErrorAction Stop
+
+                    Dismount-DiskImage -ImagePath $vhd.location -ErrorAction Stop
                     Write-Verbose "$(Get-Date): Succesfully dismounted VHD: $name"
-                   
+
 
                 }
             }
