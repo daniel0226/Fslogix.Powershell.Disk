@@ -8,9 +8,14 @@ $here = $here | Split-Path -Parent | Split-Path -Parent | Split-Path -Parent
 Describe $sut {
 
     BeforeAll {
-        if (-not(test-path -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd1.vhd")) {
-            convertto-vhd -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd1.vhdx"
+        Mock -CommandName Get-FslDisk -MockWith {
+            [PSCustomObject]@{
+                Path  = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd'
+                Attached = $false
+            }
         }
+        mock -CommandName Remove-item -MockWith {}
+        mock -CommandName convert-VHD -MockWith {}
     }
     Context -Name 'Outputs that should throw' {
         it 'User used non-existing Path'{
@@ -33,6 +38,15 @@ Describe $sut {
         it 'Used directory path, should throw'{
             $invalid_path = { convertto-vhdx -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest" }
             $invalid_path | should throw
+        }
+        it 'VHD is in use'{
+            Mock -CommandName Get-FslDisk -MockWith {
+                [PSCustomObject]@{
+                    Path  = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd'
+                    Attached = $true
+                }
+            }
+            {convertto-vhdx -path "C:\Users\danie\Documents\VHDModuleProject\ODFCTest\testvhd1.vhd" -overwrite -WarningAction Stop } | should throw
         }
     }
 

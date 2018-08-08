@@ -13,21 +13,24 @@ function Get-FslDriveType {
     }
     
     process {
-        
-        #Write-Verbose "$((get-date).ToString('yy/mm/dd/hh:mm:ss:fff'))"
-        $Disk = get-disk | where-object {$_.Number -eq $DiskNumber}
-
-        # This line of code is really slow
-        $Partition_AccessPaths = ($Disk | Get-Partition).AccessPaths
-        #Write-Verbose "$((get-date).ToString('yy/mm/dd/hh:mm:ss:fff'))"
-        
-        $volume = Get-WMIObject -Class Win32_Volume
-        foreach($AccessPath in $Partition_AccessPaths){
-            if($volume.DeviceId -contains $AccessPath){
-                $Volume = $volume | where-object {$_.deviceid -eq $Accesspath}
-            }
+    
+        $Partition = get-partition -disknumber $DiskNumber | Where-Object {$_.type -eq 'Basic'}
+        $Partition_AccessPaths = $Partition | select-object -expandproperty accesspaths | select-object -first 1
+        ## If Guid returned
+        if($Partition_AccessPaths -like 'C:\ProgramData\FsLogix\FslGuid\*'){
+            $Partition_AccessPaths = $Partition.Guid 
+            $volume = Get-WMIObject -Class Win32_Volume | Where-Object {$_.DeviceId -eq "\\?\Volume$($Partition_AccessPaths)\"}
         }
-        #Write-Verbose "$((get-date).ToString('yy/mm/dd/hh:mm:ss:fff'))"
+
+        ## If driveletter returned
+        if($Partition_AccessPaths.length -eq '3'){
+            $volume = Get-WmiObject -class Win32_Volume | Where-Object {$_.Driveletter -eq "$($Partition_AccessPaths.substring(0,2))"}
+        }
+
+        ## If \\?\Volume{*}\ Returned
+        if($Partition_AccessPaths -like "\\?\Volume{*}\"){
+            $volume = Get-WMIObject -Class Win32_Volume | Where-Object {$_.DeviceId -eq $Partition_AccessPaths}
+        }
         if($null -eq $Volume){
             Write-Warning "Could not find volume associated with disk number: $DiskNumber"
         }else{

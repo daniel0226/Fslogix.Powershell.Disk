@@ -33,57 +33,37 @@ function Get-FslDisk {
         if (-not(test-path -path $Path)) {
             Write-Error "Cannot find path: $path" -ErrorAction Stop
         }
-
-        $Extension = get-item -path $Path
-
-        if($Extension.Extension -eq ".vhd" -or $Extension.Extension -eq ".vhdx" ){
-
+        $Disk_Item_Info = get-item -path $Path
+        if ($Disk_Item_Info.Extension -eq ".vhd" -or $Disk_Item_Info.Extension -eq ".vhdx" ) {
+            try {
+                $VHDInfo = $Path | Get-DiskImage -ErrorAction Stop
+            }
+            catch {
+                Write-Error $Error[0]
+            }
             $name               = split-path -path $path -leaf
-            $VHDInfo            = $Path | Get-DiskImage -ErrorAction Stop
-            $Disk_Item_Info     = Get-item -path $path
             $extension          = ($Disk_Item_Info.Extension).TrimStart(".")
             $CreationTime       = $Disk_Item_Info.CreationTime
             $LastWriteTime      = $Disk_Item_Info.LastWriteTime
             $LastAccessTime     = $Disk_Item_Info.LastAccessTime
             $SizeGB             = $VHDInfo.Size / 1gb
             $SizeMB             = $VHDInfo.Size / 1mb
-            $FreeSpace          = [Math]::Round((($VHDInfo.Size - $VHDInfo.FileSize) / 1gb) ,2)
+            $FreeSpace          = [Math]::Round((($VHDInfo.Size - $VHDInfo.FileSize) / 1gb) , 2)
 
             $DiskNumber         = $null
             $NumberOfPartitions = $null
             $Guid               = $null
             $VHDType            = $null
-
+            
             if ($VHDInfo.Attached) {
 
-                $Disk               = get-disk | where-object {$_.location -eq $path}
+                $Disk = get-disk | where-object {$_.location -eq $path}
                 $DiskNumber         = $Disk.number
                 $NumberOfPartitions = $Disk.NumberOfPartitions
-                $Guid               = $Disk.Guid -replace '{','' -replace '}',''
+                $Guid               = $Disk.Guid -replace '{', '' -replace '}', ''
                 $VHDType            = Get-FslDriveType -number $DiskNumber
 
             }
-
-            <#$Properties = [PSCustomObject]@{
-                ComputerName        = $env:COMPUTERNAME
-                Name                = $name
-                path                = $Path
-                Guid                = $Guid
-                VhdFormat           = $extension
-                VHDType             = $VHDType
-                Attached            = $VHDInfo.Attached
-                DiskNumber          = $DiskNumber
-                NumberOfPartitions  = $NumberOfPartitions
-                CreationTime        = $CreationTime
-                LastWriteTime       = $LastWriteTime
-                LastAccessTime      = $LastAccessTime
-                SizeInGB            = $SizeGB
-                SizeInMB            = $SizeMB
-                FreespaceGB         = $FreeSpace
-            }
-
-            Write-Output $Properties #>
-
             $VHDInfo | Add-Member @{ComputerName        = $env:COMPUTERNAME  }
             $VHDInfo | Add-Member @{Name                = $Name              }
             $VHDInfo | Add-Member @{path                = $Path              }
@@ -98,7 +78,6 @@ function Get-FslDisk {
             $VHDInfo | Add-Member @{SizeInGB            = $SizeGB            }
             $VHDInfo | Add-Member @{SizeInMB            = $SizeMB            }
             $VHDInfo | Add-Member @{FreespaceGB         = $FreeSpace         }
-
             Write-Output $VHDInfo
 
         }

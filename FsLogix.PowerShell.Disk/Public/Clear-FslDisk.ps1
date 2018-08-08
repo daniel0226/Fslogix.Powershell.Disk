@@ -38,6 +38,11 @@ function Clear-FslDisk {
     [CmdletBinding(DefaultParametersetName='None')]
     param (
         [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [ValidateScript({
+            if (-not(test-path $_)) {
+                Throw "Could not find path: $_"
+            }
+        })]
         [System.String]$path,
 
         [Parameter(Position = 1)]
@@ -58,9 +63,7 @@ function Clear-FslDisk {
     }
 
     process {
-        if (-not(test-path $path)) {
-            Write-Error "Could not find path: $Path" -ErrorAction Stop
-        }
+        
         ## Helper function ##
         $VHDs = get-fslvhd -path $path -start $Start -end $End
 
@@ -75,6 +78,7 @@ function Clear-FslDisk {
                 continue
             }else{ Write-Verbose "$(Get-Date): Retreived contents"}
 
+            ## Using a forloop is faster than sending to pipeling in remove-item.
             foreach($item in $contents){
                 if($force){
                     remove-item $item.fullname -Force -Recurse 
