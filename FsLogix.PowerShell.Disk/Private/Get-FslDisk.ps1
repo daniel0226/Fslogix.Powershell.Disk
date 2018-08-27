@@ -14,18 +14,46 @@ function Get-FslDisk {
 
         .PARAMETER path
         User specified path location to a VHD. Must include .vhd/.vhdx extension
+
+        .PARAMETER Full
+        Switch parameter to obtain full information of a disk. Performance will be slower.
+
         .EXAMPLE
         get-FslVHD -path C:\Users\Daniel\ODFC\test1.vhd
-        Will return the properties associated with test1.vhdKs
+        Will return the properties associated with test1.vhd's
     #>
     [CmdletBinding()]
     param (
         [Parameter(Position = 0, Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
-        [System.String]$Path
+        [System.String]$Path,
+
+        [Parameter(Position = 1)]
+        [Switch]$Full
     )
 
     begin {
         set-strictmode -Version latest
+        function Get-Ost($VHD_Path){
+            $DriveLetter = get-driveletter -VHDPath $VHD_Path
+            $Ost = get-childitem -path (join-path $DriveLetter *.ost) -recurse
+            dismount-FslDisk -FullName $VHD_Path
+            if ($null -eq $ost) {
+                return 0
+            }
+            else {
+                try {
+                    $count = $ost.count
+                }
+                catch [System.Management.Automation.PropertyNotFoundException] {
+                    # When calling the get-childitem cmdlet, if the cmldet only returns one
+                    # object, then it loses the count property, despite working on terminal.
+                    # When only one object is found, the type is System.IO.FileSystemInfo
+                    # When objects found is greater than 1, the type is System.Array
+                    $count = 1
+                }
+                return $count
+            }
+        }
     }
 
     process {
@@ -72,12 +100,19 @@ function Get-FslDisk {
             $VHDInfo | Add-Member @{VHDType             = $VHDType           }
             $VHDInfo | Add-Member @{DiskNumber          = $DiskNumber        }
             $VHDInfo | Add-Member @{NumberOfPartitions  = $NumberOfPartitions}
-            $VHDInfo | Add-Member @{CreationTime        = $CreationTime      }
-            $VHDInfo | Add-Member @{LastWriteTime       = $LastWriteTime     }
-            $VHDInfo | Add-Member @{LastAccessTime      = $LastAccessTime    }
-            $VHDInfo | Add-Member @{SizeInGB            = $SizeGB            }
-            $VHDInfo | Add-Member @{SizeInMB            = $SizeMB            }
-            $VHDInfo | Add-Member @{FreespaceGB         = $FreeSpace         }
+
+            if($full){
+
+                $OstCount = Get-Ost($Path)
+
+                $VHDInfo | Add-Member @{CreationTime        = $CreationTime      }
+                $VHDInfo | Add-Member @{LastWriteTime       = $LastWriteTime     }
+                $VHDInfo | Add-Member @{LastAccessTime      = $LastAccessTime    }
+                $VHDInfo | Add-Member @{SizeInGB            = $SizeGB            }
+                $VHDInfo | Add-Member @{SizeInMB            = $SizeMB            }
+                $VHDInfo | Add-Member @{FreespaceGB         = $FreeSpace         }
+                $VHDInfo | Add-Member @{OstCount            = $OstCount          }
+            }
             Write-Output $VHDInfo
 
         }

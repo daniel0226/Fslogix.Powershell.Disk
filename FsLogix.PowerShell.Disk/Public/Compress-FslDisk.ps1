@@ -7,11 +7,6 @@ function Compress-FslDisk {
             ValueFromPipeline = $true,
             ValueFromPipelineByPropertyName = $true
         )][Alias("Path")]
-        [ValidateScript({
-            if(-not(test-path -path $_)){
-                Throw "Could not find path: $_"
-            }
-        })]
         [System.String]$VHD,
 
         [Parameter(Position = 1,
@@ -24,7 +19,10 @@ function Compress-FslDisk {
             Mandatory = $true,
             ValueFromPipeline = $true,
             ParameterSetName = "Index"
-        )][Alias("End")][int]$Ending_Index
+        )][Alias("End")][int]$Ending_Index,
+
+        [Parameter(Position = 3)]
+        [Switch]$Dismount
     )
     
     begin {
@@ -41,8 +39,15 @@ function Compress-FslDisk {
             }
            
             if ($Disk_Info.InUse) {
-                Write-Error "$($Disk_Info.name) is currently in use." -ErrorAction Stop
+                if($Dismount){ 
+                    Write-Warning "$(Get-Date): $($Disk_Info.name) is currently in use. Dismounting disk."
+                    dismount-FslDisk -FullName $Disk_Info.Path
+                }else{
+                    Write-Error "$($Disk_Info.name) is currently in use. Please de-attach." -ErrorAction Stop
+                }
             }
+
+            Get-FslDuplicates -vhdpath $Disk_Info.Path -Remove
             
             Write-Verbose "$(Get-Date): Compacting Virtual Disk: $($Disk_Info.Name)"
             Optimize-VHD -Path $Disk_Info.path -Mode Full -ErrorAction Stop

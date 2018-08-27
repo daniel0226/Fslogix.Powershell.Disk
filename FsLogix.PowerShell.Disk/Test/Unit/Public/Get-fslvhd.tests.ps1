@@ -87,6 +87,12 @@ Describe $sut {
         }
     }
     Context -name 'Test output'{
+        mock -CommandName get-childitem -MockWith {
+            [PSCustomObject]@{
+                Count = 9
+                FullName = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd'
+            }
+        }
         Mock -CommandName Get-FslDisk -MockWith {
             [PSCustomObject]@{
                 Number              = 1
@@ -110,6 +116,61 @@ Describe $sut {
             $Command.Attached           | should be $true
             $Command.Size               | should be 10gb
             $Command.FileSize           | should be 8gb
+        }
+        it 'Number of VHD should be 1'{
+            $command = {get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd'}
+            $command.count | should be 1
+        }
+    }
+    Context -name 'Different algorithms for index selection'{
+        mock -CommandName Get-FslDisk -MockWith {
+            [PSCustomObject]@{
+                Name = 'test.vhd'
+                Path = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd'
+            }
+        }
+        mock -CommandName get-childitem -MockWith {
+            [PSCustomObject]@{
+                Count = 9
+                FullName = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd'
+            }
+        }
+        it 'End index is greater than 0 should give warning'{
+            get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd' -start 1 -end 50 -WarningVariable Warn
+            $warn.count | should be 1
+        }
+        it 'Count is less than 10, uses select-object'{
+            {get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd' -start 1 -end 50} | should not throw
+        }
+        mock -CommandName get-childitem -MockWith {
+            [PSCustomObject]@{
+                Count = 11
+                FullName = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd'
+            }
+        }
+        it 'Count is greater than 10, uses hashtable enumeration'{
+            {get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd' -start 1 -end 50} | should not throw
+        }
+        it 'full parameter no index'{
+            {get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd' -full } | should not throw
+        }
+        it 'full parameter count is greater than 10'{
+            mock -CommandName get-childitem -MockWith {
+                [PSCustomObject]@{
+                    Count = 20
+                    FullName = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd'
+                }
+            }
+            {get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd' -full -start 1 -end 50} | should not throw
+        }
+        it 'full parameter count is less than 10'{
+            mock -CommandName get-childitem -MockWith {
+                [PSCustomObject]@{
+                    Count = 9
+                    FullName = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd'
+                }
+            }
+            {get-fslvhd 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest\test - copy (2).vhd' -full -start 1 -end 50} | should not throw
         }
     }
 }

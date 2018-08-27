@@ -7,7 +7,7 @@ $here = $here | Split-Path -Parent | Split-Path -Parent | Split-Path -Parent
 Describe $sut{
     context -name 'should throw'{
         it 'No VHDs in path'{
-            {Format-FslDriveLetter -VhdPath 'C:\Users\danie\Documents\VHDModuleProject\FsLogix.PowerShell.Disk\Public' -Command 'set'} | out-null | should throw
+            {Format-FslDriveLetter -VhdPath 'C:\Users\danie\Documents\VHDModuleProject\FsLogix.PowerShell.Disk\Public' -Command 'set'} | should throw
         }
         it 'Invalid Command name'{
             {Format-FslDriveLetter -VhdPath 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhdx' -asdf} | should throw
@@ -31,6 +31,61 @@ Describe $sut{
         }
         it 'Valid set inputs'{
             {Format-FslDriveLetter -VhdPath 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhdx' -set -Letter 'D'} | should not throw
+        }
+        it 'Assign'{
+            mock -CommandName Get-Fsldisk -MockWith {
+                [PSCustomObject]@{
+                    Attached = $true
+                    Path = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd'
+                }
+            }
+            Mock -CommandName Mount-DiskImage -MockWith {
+                [PSCustomObject]@{
+                    Number = 1
+                }
+            }
+            Mock -CommandName Get-Diskimage -MockWith {}
+            Mock -CommandName Get-Disk -MockWith {
+                
+            }
+            Mock -CommandName Get-Partition -MockWith {
+                [PSCustomObject]@{
+                    Type = Basic
+                }
+            }
+            mock -CommandName Set-Partition -MockWith {}
+            {Format-FslDriveLetter -VhdPath 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd' -Assign} | should not throw
+        }
+        it 'All letters fail.'{
+            mock -CommandName Get-Fsldisk  -MockWith {
+                [PSCustomObject]@{
+                    Attached = $true
+                    Path = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd'
+                }
+            }
+            Mock -CommandName Mount-DiskImage -MockWith {
+                [PSCustomObject]@{
+                    Number = 1
+                }
+            }
+            Mock -CommandName Get-Diskimage -MockWith {
+                [PSCustomObject]@{
+                    Number = 1
+                }
+            }
+            Mock -CommandName Get-Disk -MockWith {
+                [PSCustomObject]@{
+                    Location = 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd'
+                }
+                
+            }
+            Mock -CommandName Get-Partition -MockWith {
+                [PSCustomObject]@{
+                    Type = Basic
+                }
+            }
+            mock -CommandName Set-Partition -MockWith {throw}
+            {Format-FslDriveLetter -VhdPath 'C:\Users\danie\Documents\VHDModuleProject\ODFCTest2\testvhd1.vhd' -Assign} | should throw
         }
     }
 }
