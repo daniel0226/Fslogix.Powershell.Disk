@@ -14,7 +14,10 @@ function Set-FslDriveLetter {
         [ValidatePattern('^[a-zA-Z]')]
         [System.Char]$Letter,
 
-        [Parameter( Position = 2)]
+        [Parameter (Position = 2)]
+        [int]$PartitionNumber,
+
+        [Parameter( Position = 3)]
         [Switch]$Dismount
     )
 
@@ -29,14 +32,14 @@ function Set-FslDriveLetter {
             )
             ## Start at D rather than A since A-B are floppy drives and C is used by main operating system.
             $Letters = [char[]](68..90)
-            $AvailableLetters = New-Object System.Collections.ArrayList
+            <#$AvailableLetters = New-Object System.Collections.ArrayList
             foreach ($letter in $Letters) {
                 $Used_Letter = Get-PsDrive -Name $letter -ErrorAction SilentlyContinue
                 if ($null -eq $Used_Letter) {
                     $null = $AvailableLetters.add($letter)
                 }
-            }
-        
+            }#>
+            $AvailableLetters = $Letters | Where-Object {!(test-path -Path "$($_):")}
             if ($Next) {
                 Write-Output $AvailableLetters | select-object -first 1
             }
@@ -50,6 +53,10 @@ function Set-FslDriveLetter {
     }
 
     process {
+
+        if(!$PSBoundParameters.ContainsKey("PartitionNumber")){
+            $PartitionNumber = 1
+        }
 
         if (-not(test-path -path $Path)) {
             Write-Error "Could not find path: $Path" -ErrorAction Stop
@@ -69,7 +76,6 @@ function Set-FslDriveLetter {
         }
 
         if ($Available -eq $false) {
-            Write-Warning "For available driveletters, type cmdlet: Get-FslAvailableDriveLetter"
             Write-Error "DriveLetter '$($Letter):\' is not available. " -ErrorAction Stop
         }
         $name = $vhds.name
@@ -80,8 +86,15 @@ function Set-FslDriveLetter {
             $mount = Mount-DiskImage -ImagePath $path -NoDriveLetter -PassThru -ErrorAction Stop | get-diskimage
             $Disk = $mount | get-disk -ErrorAction Stop
         }
-        $Partition = $Disk | get-partition -ErrorAction Stop
-        $Partition | sort-object -property size | select-object -last 1 | set-partition -NewDriveLetter $letter -ErrorAction Stop 
+
+        $DiskNumber = $disk.Number
+
+        Try{
+            $Partition = get-partition -DiskNumber $DiskNumber -PartitionNumber $PartitionNumber
+        }catch{
+            Write-Error $Error[0]
+        }
+        $Partition | set-partition -NewDriveLetter $letter -ErrorAction Stop 
 
         Write-Verbose "Succesfully changed $name's Driveletter to [$($letter):\]."
         

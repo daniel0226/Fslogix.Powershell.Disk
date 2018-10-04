@@ -50,27 +50,33 @@ function Get-FslDisk {
                 [System.String]$VHDPath
             )
 
-            $VHD        = Get-Diskimage -ImagePath $VHDPath
-            $VHD_Item   = Get-Item -path $VHDPath
+            Try{
+                $VHD        = Get-Diskimage -ImagePath $VHDPath -ErrorAction Stop
+                $VHD_Item   = Get-Item -path $VHDPath -ErrorAction Stop
+            }catch{
+                Write-Error $Error[0]
+            }
 
             $Format     = $VHD_Item.Extension.TrimStart('.')
             $Name       = split-path -path $VHDPath -Leaf
+            $BaseName   = $VHD_Item.BaseName
             $SizeGb     = $VHD.Size / 1gb
             $SizeMb     = $VHD.Size / 1mb
-            $FreeSpace  = [Math]::Round((($VHD.Size - $VHD.FileSize) / 1gb) , 2)
+            #$FreeSpace  = [Math]::Round((($VHD.Size - $VHD.FileSize) / 1gb) , 2)
             
             $VHD | Add-Member @{ ComputerName   = $Env:COMPUTERNAME}
             $VHD | Add-Member @{ Name           = $Name}
+            $VHD | Add-Member @{ BaseName       = $BaseName}
             $VHD | Add-Member @{ Format         = $Format}
             $VHD | Add-Member @{ SizeGb         = $SizeGb}
             $VHD | Add-Member @{ SizeMb         = $SizeMb}
-            $VHD | Add-Member @{ FreeSpace      = $FreeSpace}
+            #$VHD | Add-Member @{ FreeSpace      = $FreeSpace}
 
             Write-Output $VHD
         }
     }
     
-    process {
+    Process {
         Switch ($PSCmdlet.ParameterSetName){
             Path {
                 if(-not(test-path -path $Path)){
