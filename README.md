@@ -1,4 +1,5 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/3qvdttdt33wgt5mk?svg=true)](https://ci.appveyor.com/project/daniel0226/fslogix-powershell-disk)<br/>
 
-Module created by Daniel Yong Kim for FsLogix.
-Custom scripts also created by Daniel Yong Kim for Dave Young @ FsLogix.
+The first Directory contains custom scripts created for David Young and CDC.
+The second Directory is contains a powershell module for running Microsoft's FsLogix virtual drives.
+To use the module, load the module into the hosted repository by using the FsLogix.Powershell.Disk.psm1 script.
